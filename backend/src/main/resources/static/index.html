@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AquaWatch — Water Quality Monitoring Station</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+</head>
+<body>
+
+<div class="scanlines"></div>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-mark">
+      <svg width="26" height="26" viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M13 2C13 2 5 12.5 5 17.5C5 22.194 8.582 25 13 25C17.418 25 21 22.194 21 17.5C21 12.5 13 2 13 2Z" stroke="currentColor" stroke-width="1.6"/>
+      </svg>
+    </span>
+    <div class="brand-text">
+      <h1>AquaWatch</h1>
+      <span class="brand-sub">Automatic Water Quality Monitoring Station</span>
+    </div>
+  </div>
+
+  <div class="topbar-right">
+    <div class="device-chip">
+      <span class="chip-label">DEVICE</span>
+      <span class="chip-value" id="deviceIdLabel">ESP32-01</span>
+    </div>
+    <div class="conn-indicator" id="connIndicator">
+      <span class="dot"></span>
+      <span id="connText">CONNECTING…</span>
+    </div>
+    <div class="clock" id="clock">--:--:--</div>
+  </div>
+</header>
+
+<main class="dashboard">
+
+  <!-- ===================== STATUS BANNER (signature element) ===================== -->
+  <section class="status-banner" id="statusBanner" data-state="unknown">
+    <div class="wave-field" aria-hidden="true">
+      <svg class="wave wave-back" viewBox="0 0 1200 200" preserveAspectRatio="none">
+        <path d="M0,100 C150,180 350,20 600,100 C850,180 1050,20 1200,100 L1200,200 L0,200 Z"></path>
+      </svg>
+      <svg class="wave wave-front" viewBox="0 0 1200 200" preserveAspectRatio="none">
+        <path d="M0,110 C200,40 400,170 600,110 C800,50 1000,160 1200,110 L1200,200 L0,200 Z"></path>
+      </svg>
+    </div>
+
+    <div class="banner-content">
+      <div class="status-left">
+        <span class="eyebrow">OVERALL WATER QUALITY</span>
+        <h2 class="status-word" id="statusWord">READING…</h2>
+        <p class="status-remarks" id="statusRemarks">Waiting for the first sensor reading to arrive.</p>
+      </div>
+
+      <div class="relay-panel">
+        <span class="eyebrow">PURIFICATION RELAY</span>
+        <div class="relay-indicator" id="relayIndicator" data-relay="off">
+          <span class="relay-led"></span>
+          <span class="relay-text" id="relayText">OFF</span>
+        </div>
+        <span class="relay-caption" id="relayCaption">Standing by</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== LIVE SENSOR READOUTS ===================== -->
+  <section class="readouts">
+
+    <article class="gauge-card" data-metric="ph">
+      <div class="gauge-head">
+        <span class="gauge-label">pH LEVEL</span>
+        <span class="gauge-range">Safe 6.5 – 8.5</span>
+      </div>
+      <div class="gauge-value">
+        <span id="phValue">--</span><span class="gauge-unit">pH</span>
+      </div>
+      <div class="gauge-track"><div class="gauge-fill" id="phFill"></div></div>
+    </article>
+
+    <article class="gauge-card" data-metric="tds">
+      <div class="gauge-head">
+        <span class="gauge-label">TDS</span>
+        <span class="gauge-range">Safe 50 – 500 ppm</span>
+      </div>
+      <div class="gauge-value">
+        <span id="tdsValue">--</span><span class="gauge-unit">ppm</span>
+      </div>
+      <div class="gauge-track"><div class="gauge-fill" id="tdsFill"></div></div>
+    </article>
+
+    <article class="gauge-card" data-metric="turbidity">
+      <div class="gauge-head">
+        <span class="gauge-label">TURBIDITY</span>
+        <span class="gauge-range">Safe &lt; 5 NTU</span>
+      </div>
+      <div class="gauge-value">
+        <span id="turbidityValue">--</span><span class="gauge-unit">NTU</span>
+      </div>
+      <div class="gauge-track"><div class="gauge-fill" id="turbidityFill"></div></div>
+    </article>
+
+    <article class="gauge-card" data-metric="temperature">
+      <div class="gauge-head">
+        <span class="gauge-label">TEMPERATURE</span>
+        <span class="gauge-range">Safe 10 – 35 °C</span>
+      </div>
+      <div class="gauge-value">
+        <span id="temperatureValue">--</span><span class="gauge-unit">°C</span>
+      </div>
+      <div class="gauge-track"><div class="gauge-fill" id="temperatureFill"></div></div>
+    </article>
+
+  </section>
+
+  <!-- ===================== STATS STRIP ===================== -->
+  <section class="stats-strip" id="statsStrip">
+    <div class="stat-item">
+      <span class="stat-num" id="statTotal">0</span>
+      <span class="stat-label">Total Readings (24h)</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-num safe" id="statSafePct">0%</span>
+      <span class="stat-label">Safe Rate</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-num" id="statAvgPh">--</span>
+      <span class="stat-label">Avg pH</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-num" id="statAvgTds">--</span>
+      <span class="stat-label">Avg TDS (ppm)</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-num" id="statAvgTurbidity">--</span>
+      <span class="stat-label">Avg Turbidity (NTU)</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-num" id="statAvgTemp">--</span>
+      <span class="stat-label">Avg Temp (°C)</span>
+    </div>
+  </section>
+
+  <!-- ===================== TREND CHART ===================== -->
+  <section class="panel">
+    <div class="panel-head">
+      <h3>Water Quality Trends</h3>
+      <span class="panel-sub">Last 50 readings</span>
+    </div>
+    <div class="chart-wrap">
+      <canvas id="trendChart"></canvas>
+    </div>
+  </section>
+
+  <!-- ===================== HISTORY TABLE ===================== -->
+  <section class="panel">
+    <div class="panel-head">
+      <h3>Historical Readings</h3>
+      <span class="panel-sub" id="historyRange">—</span>
+    </div>
+    <div class="table-wrap">
+      <table class="history-table">
+        <thead>
+          <tr>
+            <th>Timestamp</th>
+            <th>pH</th>
+            <th>TDS (ppm)</th>
+            <th>Turbidity (NTU)</th>
+            <th>Temp (°C)</th>
+            <th>Status</th>
+            <th>Relay</th>
+          </tr>
+        </thead>
+        <tbody id="historyBody">
+          <tr><td colspan="7" class="empty-row">Loading history…</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="pagination">
+      <button id="prevPage" class="page-btn">← Prev</button>
+      <span id="pageIndicator">Page 1</span>
+      <button id="nextPage" class="page-btn">Next →</button>
+    </div>
+  </section>
+
+</main>
+
+<footer class="footer">
+  <span>AquaWatch IoT Monitoring · ESP32 + Spring Boot + MySQL</span>
+  <span id="lastUpdated">Never updated</span>
+</footer>
+
+<script src="js/app.js"></script>
+</body>
+</html>
